@@ -27,3 +27,26 @@ find . -name '*.mp4' | while read line; do
    rm final_joined_${prev}.mp4
 
 done
+
+#ChatGTP refactor 
+
+vidlen=15
+transitionduration=3
+offset=0
+
+inputs=()
+filters=()
+count=0
+for f in *.mp4; do
+  inputs+=("-i $f")
+  if [ "$count" -gt 0 ]; then
+    filters+=("[${count}:v][${count}a][0:v][0:a]xfade=transition=fade:duration=${transitionduration}:offset=${offset}[v$count][a$count];")
+    offset=$((offset + vidlen - transitionduration))
+  fi
+  ((count++))
+done
+
+filterchain=$(printf "%s" "${filters[@]}")
+filterchain+="[${count}:v][${count}a]concat=n=${count}:v=1:a=1[v][a]"
+
+ffmpeg ${inputs[@]} -filter_complex "$filterchain" -map "[v]" -map "[a]" -vcodec libx264 -pix_fmt yuv420p output.mp4
