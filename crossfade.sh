@@ -1,52 +1,63 @@
 #!/bin/bash
 
-vidlen=15
-transitionduration=3
-offset=0
+# ffmpeg \
+# -vsync 0 \
+# -i 0.mp4 \
+# -i 1.mp4 \
+# -i 2.mp4 \
+# -filter_complex "[0:v]settb=AVTB[0v];[1:v]settb=AVTB[1v];[2:v]settb=AVTB[2v];[0v][1v]xfade=transition=fade:duration=3:offset=12[v1];[v1][2v]xfade=transition=fade:duration=3:offset=24,format=yuv420p[video]" \
+# -b:v 10M \
+# -map "[video]" \
+# outxx.mp4
 
-count=0
-find . -name '*.mp4' | while read line; do
+# ffmpeg -vsync 0 -i 0.mp4 -i 1.mp4 -i 2.mp4 -filter_complex "[0:v]settb=AVTB[0v];[1:v]settb=AVTB[1v];[2:v]settb=AVTB[2v];[0v][1v]xfade=transition=fade:duration=3:offset=12[v1];[v1][2v]xfade=transition=fade:duration=3:offset=24,format=yuv420p[video]" -b:v 10M -map "[video]" outxx.mp4
+# ffmpeg -vsync 0 -i 0.mp4 -i 1.mp4 -i 2.mp4 -filter_complex "[0:v]settb=AVTB[0v];[1:v]settb=AVTB[1v];[2:v]settb=AVTB[2v];[0v][1v]xfade=transition=fade:duration=3:offset=12[v1];[1v][2v]xfade=transition=fade:duration=3:offset=24,format=yuv420p[video]" -b:v 10M -map "[video]" outxx.mp4
+# ffmpeg -vsync 0 -i 0.mp4 -i 1.mp4 -i 2.mp4 -filter_complex "[0:v]settb=AVTB[0v];[1:v]settb=AVTB[1v];[2:v]settb=AVTB[2v];[0v][1v]xfade=transition=fade:duration=3:offset=12[v1];[v1][2v]xfade=transition=fade:duration=3:offset=24,format=yuv420p[video]" -b:v 10M -map "[video]" outxx.mp4
+# ffmpeg \
+# -vsync 0 \
+# -i 0.mp4 \
+# -i 1.mp4 \
+# -i 2.mp4 \
+# -filter_complex "[0:v]settb=AVTB[0v];[1:v]settb=AVTB[1v];[2:v]settb=AVTB[2v];[0v][1v]xfade=transition=fade:duration=3:offset=12[v1];[1v][2v]xfade=transition=fade:duration=3:offset=24,format=yuv420p[video]" \
+# -b:v 10M \
+# -map "[video]" \
+# outxx.mp4
 
-  #increment the counter
-  ((count++))
-
-  #Copy the first video into place. Then continue the loop to the next videos
-  if [ $count -eq 1 ]; then
-    cp ${line:2} final_joined_1.mp4
-    continue
+# Get a list of all MP4 files in the current directory, excluding "outxx.mp4"
+files=()
+for file in *.mp4; do
+  if [ "$file" != "outxx.mp4" ]; then
+    files+=("$file")
   fi
-
-  prev=$((count - 1))
-
-  offset=$((offset + (vidlen - transitionduration))) #Calc new offset from pervious offset
-
-  ffmpeg -i final_joined_${prev}.mp4 -i ${line:2} \
-  -filter_complex "[0:v][1:v]xfade=transition=fade:duration=3:offset=${offset}" \
-  -vcodec libx264 -pix_fmt yuv420p final_joined_${count}.mp4 < /dev/null;
-
-   rm final_joined_${prev}.mp4
-
 done
 
-#ChatGTP refactor 
+# Create the ffmpeg command
+ffmpeg_command="ffmpeg -vsync 0"
 
-vidlen=15
-transitionduration=3
-offset=0
-
-inputs=()
-filters=()
-count=0
-for f in *.mp4; do
-  inputs+=("-i $f")
-  if [ "$count" -gt 0 ]; then
-    filters+=("[${count}:v][${count}a][0:v][0:a]xfade=transition=fade:duration=${transitionduration}:offset=${offset}[v$count][a$count];")
-    offset=$((offset + vidlen - transitionduration))
-  fi
-  ((count++))
+# Iterate over the files and append input arguments to the ffmpeg command
+for ((i=0; i<${#files[@]}; i++)); do
+  ffmpeg_command+=" -i ${files[i]}"
 done
 
-filterchain=$(printf "%s" "${filters[@]}")
-filterchain+="[${count}:v][${count}a]concat=n=${count}:v=1:a=1[v][a]"
+# Add the filter_complex argument to the ffmpeg command
+ffmpeg_command+=" -filter_complex \""
 
-ffmpeg ${inputs[@]} -filter_complex "$filterchain" -map "[v]" -map "[a]" -vcodec libx264 -pix_fmt yuv420p output.mp4
+for ((i=0; i<${#files[@]}; i++)); do
+  ffmpeg_command+="[${i}:v]settb=AVTB[${i}v];"
+done
+
+for ((i=0; i<${#files[@]}-1; i++)); do
+  if ((i != ${#files[@]}-2)); then
+    ffmpeg_command+="[${i}v][$(($i+1))v]xfade=transition=fade:duration=3:offset=$((12*(i+1)))[v$(($i+1))];"
+  else
+    ffmpeg_command+="[v$(($i))][$(($i+1))v]xfade=transition=fade:duration=3:offset=$((12*(${#files[@]}-1))),format=yuv420p[video]\""
+  fi
+done
+
+ffmpeg_command+=" -b:v 10M -map \"[video]\" outxx.mp4"
+
+# Print the ffmpeg command
+echo "$ffmpeg_command"
+
+
+
