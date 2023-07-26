@@ -6,4 +6,6 @@ This is a simple script to create a zoom and crossfade video effect from jpeg im
 2. run ./zoom.sh
 3. run ./crossfade.sh
 
+## Example result 
+
 [![Example result](https://img.youtube.com/vi/kAIUktwwc00/default.jpg)](https://youtu.be/kAIUktwwc00)
